@@ -28,6 +28,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
         uint totalDistributed;
         bool finalized;
         uint claimKoef;
+        uint decimals;
     }
 
     //for receiving
@@ -46,8 +47,6 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
     uint constant SECONDS_IN_DAY = 86400;
 
-    uint constant DECIMAL_KOEF = 10000;
-
     event StartAirdrop(uint indexed id, address token);
 
     event DestributionChanged(address indexed participant, uint amount);
@@ -59,7 +58,8 @@ contract Airdrop is Ownable, ReentrancyGuard {
     function startCompaign(
         address _token,
         uint _totalAllocated,
-        uint _claimKoef
+        uint _claimKoef,
+        uint _decimals
     ) public onlyOwner {
         require(_token != address(0), EmptyAddress());
 
@@ -72,7 +72,8 @@ contract Airdrop is Ownable, ReentrancyGuard {
             totalAllocated: 0,
             totalDistributed: 0,
             finalized: false,
-            claimKoef: _claimKoef
+            claimKoef: _claimKoef,
+            decimals: _decimals
         });
 
         emit StartAirdrop(id, _token);
@@ -139,7 +140,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
         uint currentAward = (campaignDistribution[_airdropId][msg.sender] *
             current.claimKoef *
-            (block.timestamp - current.vestingStart)) / DECIMAL_KOEF;
+            (block.timestamp - current.vestingStart)) / current.decimals;
 
         uint claimerAmount = campaignDistribution[_airdropId][msg.sender] + currentAward;
 
