@@ -56,24 +56,19 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
     constructor(address _owner) Ownable(_owner) {} 
 
-    function startCompaign(address _token, 
-                           uint _vestingStart, 
-                           uint _durationInDays, 
+    function startCompaign(address _token,  
                            uint _totalAllocated,
                            uint _claimKoef
                            ) public onlyOwner {
         require(_token != address(0), EmptyAddress());
-        require(_vestingStart >= block.timestamp, NotAllowedStartCampaignInPast());
-
-        uint vestingEnd = _vestingStart + (SECONDS_IN_DAY * _durationInDays);
 
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _totalAllocated);
 
         campaigns[++id] = Campaign({
             token: _token,
-            vestingStart: _vestingStart,
-            vestingEnd: vestingEnd,
-            totalAllocated: _totalAllocated,
+            vestingStart: 0,
+            vestingEnd: 0,
+            totalAllocated: 0,
             totalDistributed: 0,
             finalized: false,
             claimKoef: _claimKoef
@@ -111,10 +106,17 @@ contract Airdrop is Ownable, ReentrancyGuard {
         emit NewAirdropParticipants(_tokenDestribution);
     }
 
-    function finalizeCampaign(uint256 _campaignId) external onlyOwner {
+    function finalizeCampaign(uint256 _campaignId, uint _vestingStart, uint _durationInDays) external onlyOwner {
         Campaign storage campaign = campaigns[_campaignId];
         require(!campaign.finalized, CampaignFinalized());
+
+        require(_vestingStart >= block.timestamp, NotAllowedStartCampaignInPast());
+
+        uint vestingEnd = _vestingStart + (SECONDS_IN_DAY * _durationInDays);
+
         campaign.finalized = true;
+        campaign.vestingStart = _vestingStart;
+        campaign.vestingEnd = vestingEnd;
     }
 
     function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
