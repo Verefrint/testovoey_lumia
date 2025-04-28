@@ -11,6 +11,7 @@ error TooLongArray();
 error NotAllowedStartCampaignInPast();
 error EmptyAddress();
 error CampaignFinalized();
+error CampaignNotFinalized();
 error AlreadyClaimed();
 error TooManyForWitdraw(uint availableAmount);
 
@@ -72,7 +73,6 @@ contract Airdrop is Ownable, ReentrancyGuard {
         emit StartAirdrop(id, _token);
     }
 
-    //also we can make multiple destribution on single call function
     function uploadParticipants(AirdropParticipant[] calldata _tokenDestribution) public onlyOwner {
         uint length = _tokenDestribution.length;
 
@@ -104,7 +104,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
     function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
         Campaign storage current = airdropHistory[_airdropId];
 
-        require(block.timestamp >= current.vestingEnd || campaign.finalized, CampaignFinalized());
+        require(block.timestamp >= current.vestingEnd || !campaign.finalized, CampaignNotFinalized());
 
         uint claimerAmount = campaignDistribution[_airdropId][msg.sender];
         require(claimerAmount > 0, AlreadyClaimed());
