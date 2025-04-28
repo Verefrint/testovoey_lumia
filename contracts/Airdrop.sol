@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 error EmptyDestibutionArray();
 error TooLongArray();
@@ -67,7 +67,8 @@ contract Airdrop is Ownable, ReentrancyGuard {
             vestingStart: _vestingStart,
             vestingEnd: vestingEnd,
             totalAllocated: _totalAllocated,
-            totalDistributed: 0
+            totalDistributed: 0,
+            finalized: false
         });
 
         emit StartAirdrop(id, _token);
@@ -81,9 +82,9 @@ contract Airdrop is Ownable, ReentrancyGuard {
         for (uint i = 0; i < length; i++) {
             AirdropParticipant calldata current = _tokenDestribution[i];
 
-            Campaign memory campaign = airdropHistory[current.campaignId];
+            Campaign storage curCamp = airdropHistory[current.campaignId];
 
-            require(block.timestamp <= campaign.vestingEnd || !campaign.finalized, CampaignFinalized());
+            require(block.timestamp <= curCamp.vestingEnd || !curCamp.finalized, CampaignFinalized());
             
             if (campaignDistribution[current.campaignId][current.user] > 0) {
                 emit DestributionChanged(current.user, current.amount);
@@ -104,7 +105,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
     function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
         Campaign storage current = airdropHistory[_airdropId];
 
-        require(block.timestamp >= current.vestingEnd || !campaign.finalized, CampaignNotFinalized());
+        require(block.timestamp >= current.vestingEnd || current.finalized, CampaignNotFinalized());
 
         uint claimerAmount = campaignDistribution[_airdropId][msg.sender];
         require(claimerAmount > 0, AlreadyClaimed());
