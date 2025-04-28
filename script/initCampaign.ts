@@ -22,7 +22,7 @@ async function startCampaign(
   const airdrop = await ethers.getContractAt("Airdrop", contractAddress);
   console.log(`Connected to Airdrop contract at: ${await airdrop.getAddress()}`);
 
-  const tx = await airdrop.startCompaign(
+  const tx = await airdrop.startCampaign(
     tokenAddress,
     totalAllocated,
     { gasLimit: gasLimit }

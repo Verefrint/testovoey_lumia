@@ -27,7 +27,7 @@ describe("Airdrop", function () {
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
 
-      await expect(airdrop.startCompaign(await token.getAddress(), totalAllocated))
+      await expect(airdrop.startCampaign(await token.getAddress(), totalAllocated))
         .to.emit(airdrop, "StartAirdrop");
 
       const campaign = await airdrop.campaigns(1);
@@ -38,7 +38,7 @@ describe("Airdrop", function () {
       const { airdrop } = await loadFixture(deployAirdropFixture);
 
       await expect(
-        airdrop.startCompaign(ethers.ZeroAddress, ethers.parseEther("1000"))
+        airdrop.startCampaign(ethers.ZeroAddress, ethers.parseEther("1000"))
       ).to.be.revertedWithCustomError(airdrop, "EmptyAddress");
     });
   });
@@ -49,14 +49,14 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [
         { user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 },
         { user: user2.address, amount: ethers.parseEther("200"), campaignId: 1 }
       ];
 
-      await expect(airdrop.uploadParticipants(participants)).to.emit(airdrop, "NewAirdropParticipants");
+      await expect(airdrop.uploadParticipants(participants, 2)).to.emit(airdrop, "NewAirdropParticipants");
 
       expect(await airdrop.campaignDistribution(1, user1.address)).to.equal(ethers.parseEther("100"));
       expect(await airdrop.campaignDistribution(1, user2.address)).to.equal(ethers.parseEther("200"));
@@ -65,7 +65,7 @@ describe("Airdrop", function () {
     it("should revert on empty array", async function () {
       const { airdrop } = await loadFixture(deployAirdropFixture);
 
-      await expect(airdrop.uploadParticipants([])).to.be.revertedWithCustomError(airdrop, "EmptyDestibutionArray");
+      await expect(airdrop.uploadParticipants([], 1)).to.be.revertedWithCustomError(airdrop, "EmptyDistributionArray");
     });
   });
 
@@ -75,7 +75,7 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
 
@@ -90,7 +90,7 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
 
@@ -104,12 +104,12 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [
         { user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }
       ];
-      await airdrop.uploadParticipants(participants);
+      await airdrop.uploadParticipants(participants, 1);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       await airdrop.finalizeCampaign(1, now + 1, 1);
@@ -131,12 +131,12 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [
         { user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }
       ];
-      await airdrop.uploadParticipants(participants);
+      await airdrop.uploadParticipants(participants, 1);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       await airdrop.finalizeCampaign(1, now + 1, 1);
@@ -152,7 +152,7 @@ describe("Airdrop", function () {
     it("should revert if uploadParticipants with empty array", async function () {
       const { airdrop } = await loadFixture(deployAirdropFixture);
 
-      await expect(airdrop.uploadParticipants([])).to.be.revertedWithCustomError(airdrop, "EmptyDestibutionArray");
+      await expect(airdrop.uploadParticipants([], 1)).to.be.revertedWithCustomError(airdrop, "EmptyDistributionArray");
     });
 
     it("should revert if campaign is finalized and trying to upload more participants", async function () {
@@ -160,17 +160,17 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-      await airdrop.uploadParticipants(participants);
+      await airdrop.uploadParticipants(participants, 1);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       await airdrop.finalizeCampaign(1, now + 1, 10);
 
       const newParticipants = [{ user: user1.address, amount: ethers.parseEther("200"), campaignId: 1 }];
 
-      await expect(airdrop.uploadParticipants(newParticipants)).to.be.revertedWithCustomError(airdrop, "CampaignFinalized");
+      await expect(airdrop.uploadParticipants(newParticipants, 1)).to.be.revertedWithCustomError(airdrop, "CampaignFinalized");
     });
 
     it("should revert claim before campaign finalized", async function () {
@@ -178,10 +178,10 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-      await airdrop.uploadParticipants(participants);
+      await airdrop.uploadParticipants(participants, 1);
 
       await expect(airdrop.connect(user1).claim(1, ethers.parseEther("50")))
         .to.be.revertedWithCustomError(airdrop, "CampaignNotAllowed");
@@ -192,7 +192,7 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       await airdrop.finalizeCampaign(1, now + 1, 10);
@@ -209,11 +209,11 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("100");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [{ user: user1.address, amount: ethers.parseEther("101"), campaignId: 1 }];
 
-      await expect(airdrop.uploadParticipants(participants))
+      await expect(airdrop.uploadParticipants(participants, 1))
         .to.be.revertedWithCustomError(airdrop, "InvalidDistributionSum");
     });
 
@@ -222,10 +222,10 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-      await airdrop.uploadParticipants(participants);
+      await airdrop.uploadParticipants(participants, 1);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       await airdrop.finalizeCampaign(1, now + 1, 1);
@@ -242,10 +242,10 @@ describe("Airdrop", function () {
 
       const totalAllocated = ethers.parseEther("1000");
       await token.approve(await airdrop.getAddress(), totalAllocated);
-      await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+      await airdrop.startCampaign(await token.getAddress(), totalAllocated);
 
       const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-      await airdrop.uploadParticipants(participants);
+      await airdrop.uploadParticipants(participants, 1);
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       await airdrop.finalizeCampaign(1, now + 1, 1);
@@ -271,32 +271,28 @@ describe("Airdrop", function () {
       
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
-        await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+        await airdrop.startCampaign(await token.getAddress(), totalAllocated);
       
         const participants1 = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-        await airdrop.uploadParticipants(participants1);
+        await airdrop.uploadParticipants(participants1, 1);
 
         const participants2 = [{ user: user1.address, amount: ethers.parseEther("200"), campaignId: 1 }];
         
-        await expect(airdrop.uploadParticipants(participants2))
+        await expect(airdrop.uploadParticipants(participants2, 1))
           .to.emit(airdrop, "DestributionChanged")
           .withArgs(user1.address, ethers.parseEther("200"));
     });
 
-    it("should handle zero duration in finalizeCampaign", async function () {
+    it("should not handle zero duration in finalizeCampaign", async function () {
         const { token, airdrop } = await loadFixture(deployAirdropFixture);
       
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
-        await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+        await airdrop.startCampaign(await token.getAddress(), totalAllocated);
       
         const now = (await ethers.provider.getBlock("latest")).timestamp;
         
-        await expect(airdrop.finalizeCampaign(1, now + 10, 0))
-          .to.not.be.reverted;
-      
-        const campaign = await airdrop.campaigns(1);
-        expect(campaign.vestingEnd).to.equal(campaign.vestingStart);
+        await expect(airdrop.finalizeCampaign(1, now + 10, 0)).to.be.revertedWithCustomError(airdrop, "DurationMustBeNotNull");
     });
 
     it("should allow full claim after vesting period ends", async function () {
@@ -304,10 +300,10 @@ describe("Airdrop", function () {
       
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
-        await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+        await airdrop.startCampaign(await token.getAddress(), totalAllocated);
       
         const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-        await airdrop.uploadParticipants(participants);
+        await airdrop.uploadParticipants(participants, 1);
       
         const now = (await ethers.provider.getBlock("latest")).timestamp;
         await airdrop.finalizeCampaign(1, now + 1, 1);
@@ -328,10 +324,10 @@ describe("Airdrop", function () {
       
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
-        await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+        await airdrop.startCampaign(await token.getAddress(), totalAllocated);
       
         const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
-        await airdrop.uploadParticipants(participants);
+        await airdrop.uploadParticipants(participants, 1);
       
         const now = (await ethers.provider.getBlock("latest")).timestamp;
         await airdrop.finalizeCampaign(1, now + 1, 10); 
@@ -357,8 +353,7 @@ describe("Airdrop", function () {
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
         
-        await expect(airdrop.connect(user1).startCompaign(await token.getAddress(), totalAllocated))
-          .to.be.reverted;
+        await expect(airdrop.connect(user1).startCampaign(await token.getAddress(), totalAllocated)).to.be.reverted;
     });
       
     it("should revert when non-owner tries to upload participants", async function () {
@@ -366,11 +361,11 @@ describe("Airdrop", function () {
       
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
-        await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+        await airdrop.startCampaign(await token.getAddress(), totalAllocated);
       
         const participants = [{ user: user1.address, amount: ethers.parseEther("100"), campaignId: 1 }];
         
-        await expect(airdrop.connect(user1).uploadParticipants(participants))
+        await expect(airdrop.connect(user1).uploadParticipants(participants, 1))
           .to.be.reverted;
     });
 
@@ -379,7 +374,7 @@ describe("Airdrop", function () {
       
         const totalAllocated = ethers.parseEther("1000");
         await token.approve(await airdrop.getAddress(), totalAllocated);
-        await airdrop.startCompaign(await token.getAddress(), totalAllocated);
+        await airdrop.startCampaign(await token.getAddress(), totalAllocated);
       
         let campaign = await airdrop.campaigns(1);
         expect(campaign.finalized).to.be.false;

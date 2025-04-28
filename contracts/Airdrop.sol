@@ -6,7 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-error EmptyDestibutionArray();
+error EmptyDistributionArray();
 error TooLongArray();
 error NotAllowedStartCampaignInPast();
 error EmptyAddress();
@@ -15,45 +15,67 @@ error CampaignNotAllowed();
 error AlreadyClaimed();
 error TooManyForWitdraw(uint availableAmount);
 error InvalidDistributionSum();
+error DurationMustBeNotNull();
 
+/**
+ * @title Airdrop
+ * @notice This contract manages multiple airdrop campaigns with linear vesting schedules.
+ * @dev Only the contract owner can create, upload, and finalize campaigns. Users can claim their vested tokens based on their allocations.
+ */
 contract Airdrop is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    //one token airdrop during one campaign can add during vesting time
+    /// @notice Represents an airdrop campaign configuration.
     struct Campaign {
-        uint vestingStart;
-        uint vestingEnd;
-        address token;
-        uint totalAllocated;
-        uint totalDistributed;
-        bool finalized;
+        uint vestingStart;       // Timestamp when vesting begins
+        uint vestingEnd;         // Timestamp when vesting ends
+        address token;           // ERC20 token address for distribution
+        uint totalAllocated;     // Total tokens allocated for the campaign
+        uint totalDistributed;   // Total tokens distributed among participants
+        bool finalized;          // Whether the campaign is finalized
     }
 
-    //for receiving
+    /// @notice Structure for participant allocations used during batch uploads.
     struct AirdropParticipant {
-        address user;
-        uint amount;
-        uint campaignId;
+        address user;            // Address of the participant
+        uint amount;             // Amount of tokens allocated
+        uint campaignId;         // ID of the campaign this allocation belongs to
     }
 
-    //campaign id => user address => amount to airdrop
+    /// @notice Mapping: campaign ID => user address => remaining claimable amount.
     mapping(uint => mapping(address => uint)) public campaignDistribution;
 
+    /// @notice Mapping: campaign ID => Campaign metadata.
     mapping(uint => Campaign) public campaigns;
 
+    /// @notice Counter for campaign IDs.
     uint public id;
 
+    /// @notice Constant representing number of seconds in one day.
     uint constant SECONDS_IN_DAY = 86400;
 
+    /// @notice Emitted when a new airdrop campaign is started.
     event StartAirdrop(uint indexed id, address token);
 
+    /// @notice Emitted when a participant's distribution is updated.
     event DestributionChanged(address indexed participant, uint amount);
 
+    /// @notice Emitted after a batch of participants is uploaded.
     event NewAirdropParticipants(AirdropParticipant[] participants);
 
+    /**
+     * @notice Constructor to set the initial contract owner.
+     * @param _owner Address of the owner.
+     */
     constructor(address _owner) Ownable(_owner) {}
 
-    function startCompaign(
+    /**
+     * @notice Starts a new airdrop campaign by transferring tokens to the contract.
+     * @dev Only callable by the contract owner.
+     * @param _token The ERC20 token address to be distributed.
+     * @param _totalAllocated Total amount of tokens to allocate for the campaign.
+     */
+    function startCampaign(
         address _token,
         uint _totalAllocated
     ) public onlyOwner {
@@ -73,26 +95,37 @@ contract Airdrop is Ownable, ReentrancyGuard {
         emit StartAirdrop(id, _token);
     }
 
-    function uploadParticipants(AirdropParticipant[] calldata _tokenDestribution) public onlyOwner {
+    /**
+     * @notice Uploads a batch of airdrop participants and their allocations.
+     * @dev Only callable by the contract owner. Cannot upload if campaign is finalized.
+     * @param _tokenDestribution Array of AirdropParticipant structs.
+     * @param _preDefinedLength Predefined maximum allowed length to protect from large uploads.
+     */
+    function uploadParticipants(
+        AirdropParticipant[] calldata _tokenDestribution,
+        uint _preDefinedLength
+    ) public onlyOwner {
         uint length = _tokenDestribution.length;
 
-        require(length > 0, EmptyDestibutionArray());
+        require(length > 0, EmptyDistributionArray());
+        require(length <= _preDefinedLength, TooLongArray());
 
         unchecked {
             for (uint i = 0; i < length; i++) {
                 AirdropParticipant calldata current = _tokenDestribution[i];
-
                 Campaign storage curCamp = campaigns[current.campaignId];
 
                 require(!curCamp.finalized, CampaignFinalized());
 
                 if (campaignDistribution[current.campaignId][current.user] > 0) {
                     curCamp.totalDistributed -= campaignDistribution[current.campaignId][current.user];
-
                     emit DestributionChanged(current.user, current.amount);
                 }
 
-                require((curCamp.totalDistributed + current.amount) <= curCamp.totalAllocated, InvalidDistributionSum());
+                require(
+                    (curCamp.totalDistributed + current.amount) <= curCamp.totalAllocated,
+                    InvalidDistributionSum()
+                );
 
                 campaignDistribution[current.campaignId][current.user] = current.amount;
                 curCamp.totalDistributed += current.amount;
@@ -102,6 +135,13 @@ contract Airdrop is Ownable, ReentrancyGuard {
         emit NewAirdropParticipants(_tokenDestribution);
     }
 
+    /**
+     * @notice Finalizes a campaign by setting vesting parameters.
+     * @dev Only callable by the contract owner. Vesting must start now or later.
+     * @param _campaignId The ID of the campaign to finalize.
+     * @param _vestingStart Timestamp when vesting starts.
+     * @param _durationInDays Duration of vesting period in days.
+     */
     function finalizeCampaign(
         uint256 _campaignId,
         uint _vestingStart,
@@ -109,8 +149,8 @@ contract Airdrop is Ownable, ReentrancyGuard {
     ) external onlyOwner {
         Campaign storage campaign = campaigns[_campaignId];
         require(!campaign.finalized, CampaignFinalized());
-
         require(_vestingStart >= block.timestamp, NotAllowedStartCampaignInPast());
+        require(_durationInDays > 0, DurationMustBeNotNull());
 
         uint vestingEnd = _vestingStart + (SECONDS_IN_DAY * _durationInDays);
 
@@ -119,7 +159,16 @@ contract Airdrop is Ownable, ReentrancyGuard {
         campaign.vestingEnd = vestingEnd;
     }
 
-    function claim(uint _airdropId, uint _amountToWithdraw) public nonReentrant {
+    /**
+     * @notice Claims vested tokens from a specific airdrop campaign.
+     * @dev Users can only claim up to their vested, unclaimed amount.
+     * @param _airdropId The ID of the airdrop campaign.
+     * @param _amountToWithdraw The amount of tokens the user wants to claim.
+     */
+    function claim(
+        uint _airdropId,
+        uint _amountToWithdraw
+    ) public nonReentrant {
         Campaign storage current = campaigns[_airdropId];
 
         require(
@@ -134,8 +183,8 @@ contract Airdrop is Ownable, ReentrancyGuard {
         if (block.timestamp >= current.vestingEnd) {
             vestedAmount = initialAllocation;
         } else {
-            vestedAmount = (initialAllocation * (block.timestamp - current.vestingStart)) 
-                            / (current.vestingEnd - current.vestingStart);
+            vestedAmount = (initialAllocation * (block.timestamp - current.vestingStart))
+                           / (current.vestingEnd - current.vestingStart);
         }
 
         require(vestedAmount >= _amountToWithdraw, TooManyForWitdraw(vestedAmount));
@@ -143,5 +192,4 @@ contract Airdrop is Ownable, ReentrancyGuard {
         campaignDistribution[_airdropId][msg.sender] = initialAllocation - _amountToWithdraw;
         IERC20(current.token).safeTransfer(msg.sender, _amountToWithdraw);
     }
-
 }

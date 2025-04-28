@@ -41,7 +41,7 @@ async function upload_CSV(csvPath: string, contractAddress: string, batchSize: n
             if (batch.length === batchSize || i === records.length - 1) {
                 console.log(`Uploading batch with ${batch.length} participants...`);
 
-                const tx = await airdrop.uploadParticipants(batch, {
+                const tx = await airdrop.uploadParticipants(batch, batchSize, {
                     gasLimit: 8_000_000, 
                 });
 
