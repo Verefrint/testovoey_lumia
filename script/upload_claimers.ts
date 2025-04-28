@@ -59,11 +59,3 @@ async function upload_CSV(csvPath: string, contractAddress: string, batchSize = 
 
 // npx hardhat run scripts/upload_csv.ts --network sepolia
 upload_CSV("./data/recipients.csv", "0xYourDeployedAirdropAddressHere");
-
-echo "# testovoey_lumia" >> README.md
-git init
-git add .
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/Verefrint/testovoey_lumia.git
-git push -u origin main

@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 error EmptyDestibutionArray();
 error TooLongArray();
@@ -11,10 +12,11 @@ error NotAllowedStartCampaignInPast();
 error EmptyAddress();
 error AirdropVestingPeriodEnded();
 error AirdropVestingPeriodNotEnded();
+error CampaignFinalized();
 error AlreadyClaimed();
 error TooManyForWitdraw(uint availableAmount);
 
-contract Airdrop is Ownable {
+contract Airdrop is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     //one token airdrop during one campaign can add during vesting time
@@ -24,6 +26,7 @@ contract Airdrop is Ownable {
         address token;
         uint totalAllocated;
         uint totalDistributed;
+        bool finalized;
     }
 
     //for receiving 
@@ -72,7 +75,7 @@ contract Airdrop is Ownable {
     }
 
     //also we can make multiple destribution on single call function
-    function uploadParticipants(AirdropParticipant[] calldata _tokenDestribution) external onlyOwner {
+    function uploadParticipants(AirdropParticipant[] calldata _tokenDestribution) public onlyOwner {
         uint length = _tokenDestribution.length;
 
         require(length > 0, EmptyDestibutionArray());
@@ -94,8 +97,14 @@ contract Airdrop is Ownable {
         }
     }
 
-    function claim(uint _airdropId, uint _amountToWitdraw) public {
-        Campaign memory current = airdropHistory[_airdropId];
+    function finalizeCampaign(uint256 _campaignId) external onlyOwner {
+        Campaign storage campaign = airdropHistory[_campaignId];
+        require(!campaign.finalized, CampaignFinalized());
+        campaign.finalized = true;
+    }
+
+    function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
+        Campaign storage current = airdropHistory[_airdropId];
 
         require(block.timestamp >= current.vestingEnd, AirdropVestingPeriodNotEnded());
 
