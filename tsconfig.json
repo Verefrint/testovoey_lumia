@@ -7,9 +7,15 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true
+    "outDir": "./dist",
+    "rootDir": "./",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["./typechain-types/*"]
+    }
   },
-  "include": ["./scripts", "./test", "./typechain-types"],
-  "files": ["./hardhat.config.ts"]
+  "include": ["./scripts/**/*", "./test/**/*", "./typechain-types/**/*"],
+  "exclude": ["node_modules"]
 }

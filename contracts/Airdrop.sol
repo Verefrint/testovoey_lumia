@@ -14,6 +14,7 @@ error CampaignFinalized();
 error CampaignNotFinalized();
 error AlreadyClaimed();
 error TooManyForWitdraw(uint availableAmount);
+error InvalidDistributionSum();
 
 contract Airdrop is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -38,9 +39,9 @@ contract Airdrop is Ownable, ReentrancyGuard {
     //campaign id => user address => amount to airdrop
     mapping(uint => mapping(address => uint)) public campaignDistribution;
 
-    mapping(uint => Campaign) public airdropHistory;
+    mapping(uint => Campaign) public campaigns;
 
-    uint private id;
+    uint public id;
 
     event StartAirdrop(uint indexed id, address token);
 
@@ -62,7 +63,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
         id = id + 1;
 
-        airdropHistory[id] = Campaign({
+        campaigns[id] = Campaign({
             token: _token,
             vestingStart: _vestingStart,
             vestingEnd: vestingEnd,
@@ -82,28 +83,33 @@ contract Airdrop is Ownable, ReentrancyGuard {
         for (uint i = 0; i < length; i++) {
             AirdropParticipant calldata current = _tokenDestribution[i];
 
-            Campaign storage curCamp = airdropHistory[current.campaignId];
+            Campaign storage curCamp = campaigns[current.campaignId];
 
             require(block.timestamp <= curCamp.vestingEnd || !curCamp.finalized, CampaignFinalized());
             
             if (campaignDistribution[current.campaignId][current.user] > 0) {
+                curCamp.totalDistributed -= campaignDistribution[current.campaignId][current.user];
+
                 emit DestributionChanged(current.user, current.amount);
             }
 
+            require(curCamp.totalAllocated < (curCamp.totalDistributed + current.amount), InvalidDistributionSum());
+
             campaignDistribution[current.campaignId][current.user] = current.amount;
+            curCamp.totalDistributed += current.amount;
 
             emit NewAirdropParticipants(current.user, current.amount, current.campaignId);
         }
     }
 
     function finalizeCampaign(uint256 _campaignId) external onlyOwner {
-        Campaign storage campaign = airdropHistory[_campaignId];
+        Campaign storage campaign = campaigns[_campaignId];
         require(!campaign.finalized, CampaignFinalized());
         campaign.finalized = true;
     }
 
     function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
-        Campaign storage current = airdropHistory[_airdropId];
+        Campaign storage current = campaigns[_airdropId];
 
         require(block.timestamp >= current.vestingEnd || current.finalized, CampaignNotFinalized());
 

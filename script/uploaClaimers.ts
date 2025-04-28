@@ -58,4 +58,4 @@ async function upload_CSV(csvPath: string, contractAddress: string, batchSize = 
 }
 
 // npx hardhat run scripts/upload_csv.ts --network sepolia
-upload_CSV("./data/recipients.csv", "0xYourDeployedAirdropAddressHere");
+upload_CSV("./script/test.csv", "0x5FbDB2315678afecb367f032d93F642f64180aa3");
