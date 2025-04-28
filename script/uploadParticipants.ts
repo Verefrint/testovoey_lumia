@@ -1,8 +1,9 @@
 import { ethers } from "hardhat";
 import csv from "csv-parser";
 import fs from "fs-extra";
+import { AirdropParticipantStructOutput } from "../typechain-types/contracts/Airdrop";
 
-async function upload_CSV(csvPath: string, contractAddress: string, batchSize = 200) {
+async function upload_CSV(csvPath: string, contractAddress: string, batchSize: number, gasLimit: number) {
     try {
         const [owner] = await ethers.getSigners();
         console.log(`Address from: ${owner.address}`);
@@ -12,18 +13,18 @@ async function upload_CSV(csvPath: string, contractAddress: string, batchSize = 
 
         console.log(`Connected to contract: ${airdrop.target}`);
 
-        const records: any[] = []
+        const records: AirdropParticipantStructOutput[] = []
 
         csv(['user', 'amount', 'campaignId']);
 
         fs.createReadStream(csvPath)
             .pipe(csv())
-            .on('data', (data: any) => records.push(data))
+            .on('data', (data: AirdropParticipantStructOutput) => records.push(data))
             .on('end', () => {
                 console.log(`Parsed ${records.length} entries from ${csvPath}.`);
             })
 
-        let batch: any[] = [];
+        let batch: AirdropParticipantStructOutput [] = [];
 
         for (let i = 0; i < records.length; i++) {
 
@@ -57,5 +58,4 @@ async function upload_CSV(csvPath: string, contractAddress: string, batchSize = 
     }
 }
 
-// npx hardhat run scripts/upload_csv.ts --network sepolia
-upload_CSV("./script/test.csv", "0x5FbDB2315678afecb367f032d93F642f64180aa3");
+upload_CSV("./script/test.csv", "0x5FbDB2315678afecb367f032d93F642f64180aa3", 20, 8000000);
