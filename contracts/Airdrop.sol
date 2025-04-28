@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 error EmptyDestibutionArray();
 error TooLongArray();
@@ -22,7 +22,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
     //one token airdrop during one campaign can add during vesting time
     struct Campaign {
         uint vestingStart;
-        uint vestingEnd; 
+        uint vestingEnd;
         address token;
         uint totalAllocated;
         uint totalDistributed;
@@ -30,7 +30,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
         uint claimKoef;
     }
 
-    //for receiving 
+    //for receiving
     struct AirdropParticipant {
         address user;
         uint amount;
@@ -54,12 +54,13 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
     event NewAirdropParticipants(AirdropParticipant[] participants);
 
-    constructor(address _owner) Ownable(_owner) {} 
+    constructor(address _owner) Ownable(_owner) {}
 
-    function startCompaign(address _token,  
-                           uint _totalAllocated,
-                           uint _claimKoef
-                           ) public onlyOwner {
+    function startCompaign(
+        address _token,
+        uint _totalAllocated,
+        uint _claimKoef
+    ) public onlyOwner {
         require(_token != address(0), EmptyAddress());
 
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _totalAllocated);
@@ -81,7 +82,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
         uint length = _tokenDestribution.length;
 
         require(length > 0, EmptyDestibutionArray());
-        
+
         unchecked {
             for (uint i = 0; i < length; i++) {
                 AirdropParticipant calldata current = _tokenDestribution[i];
@@ -89,14 +90,17 @@ contract Airdrop is Ownable, ReentrancyGuard {
                 Campaign storage curCamp = campaigns[current.campaignId];
 
                 require(!curCamp.finalized, CampaignFinalized());
-                
+
                 if (campaignDistribution[current.campaignId][current.user] > 0) {
                     curCamp.totalDistributed -= campaignDistribution[current.campaignId][current.user];
 
                     emit DestributionChanged(current.user, current.amount);
                 }
 
-                require(curCamp.totalAllocated < (curCamp.totalDistributed + current.amount), InvalidDistributionSum());
+                require(
+                    curCamp.totalAllocated < (curCamp.totalDistributed + current.amount),
+                    InvalidDistributionSum()
+                );
 
                 campaignDistribution[current.campaignId][current.user] = current.amount;
                 curCamp.totalDistributed += current.amount;
@@ -106,7 +110,11 @@ contract Airdrop is Ownable, ReentrancyGuard {
         emit NewAirdropParticipants(_tokenDestribution);
     }
 
-    function finalizeCampaign(uint256 _campaignId, uint _vestingStart, uint _durationInDays) external onlyOwner {
+    function finalizeCampaign(
+        uint256 _campaignId,
+        uint _vestingStart,
+        uint _durationInDays
+    ) external onlyOwner {
         Campaign storage campaign = campaigns[_campaignId];
         require(!campaign.finalized, CampaignFinalized());
 
@@ -122,9 +130,16 @@ contract Airdrop is Ownable, ReentrancyGuard {
     function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
         Campaign storage current = campaigns[_airdropId];
 
-        require(block.timestamp >= current.vestingEnd && block.timestamp >= current.vestingStart && current.finalized, CampaignNotFinalized());
+        require(
+            block.timestamp >= current.vestingEnd &&
+                block.timestamp >= current.vestingStart &&
+                current.finalized,
+            CampaignNotFinalized()
+        );
 
-        uint currentAward = campaignDistribution[_airdropId][msg.sender] * current.claimKoef * (block.timestamp - current.vestingStart) / DECIMAL_KOEF;
+        uint currentAward = (campaignDistribution[_airdropId][msg.sender] *
+            current.claimKoef *
+            (block.timestamp - current.vestingStart)) / DECIMAL_KOEF;
 
         uint claimerAmount = campaignDistribution[_airdropId][msg.sender] + currentAward;
 
