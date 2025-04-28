@@ -10,8 +10,6 @@ error EmptyDestibutionArray();
 error TooLongArray();
 error NotAllowedStartCampaignInPast();
 error EmptyAddress();
-error AirdropVestingPeriodEnded();
-error AirdropVestingPeriodNotEnded();
 error CampaignFinalized();
 error AlreadyClaimed();
 error TooManyForWitdraw(uint availableAmount);
@@ -85,7 +83,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
             Campaign memory campaign = airdropHistory[current.campaignId];
 
-            require(block.timestamp <= campaign.vestingEnd, AirdropVestingPeriodEnded());
+            require(block.timestamp <= campaign.vestingEnd || !campaign.finalized, CampaignFinalized());
             
             if (campaignDistribution[current.campaignId][current.user] > 0) {
                 emit DestributionChanged(current.user, current.amount);
@@ -106,7 +104,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
     function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
         Campaign storage current = airdropHistory[_airdropId];
 
-        require(block.timestamp >= current.vestingEnd, AirdropVestingPeriodNotEnded());
+        require(block.timestamp >= current.vestingEnd || campaign.finalized, CampaignFinalized());
 
         uint claimerAmount = campaignDistribution[_airdropId][msg.sender];
         require(claimerAmount > 0, AlreadyClaimed());
