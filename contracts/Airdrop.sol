@@ -11,7 +11,7 @@ error TooLongArray();
 error NotAllowedStartCampaignInPast();
 error EmptyAddress();
 error CampaignFinalized();
-error CampaignNotFinalized();
+error CampaignNotAllowed();
 error AlreadyClaimed();
 error TooManyForWitdraw(uint availableAmount);
 error InvalidDistributionSum();
@@ -27,8 +27,6 @@ contract Airdrop is Ownable, ReentrancyGuard {
         uint totalAllocated;
         uint totalDistributed;
         bool finalized;
-        uint claimKoef;
-        uint decimals;
     }
 
     //for receiving
@@ -57,9 +55,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
 
     function startCompaign(
         address _token,
-        uint _totalAllocated,
-        uint _claimKoef,
-        uint _decimals
+        uint _totalAllocated
     ) public onlyOwner {
         require(_token != address(0), EmptyAddress());
 
@@ -69,11 +65,9 @@ contract Airdrop is Ownable, ReentrancyGuard {
             token: _token,
             vestingStart: 0,
             vestingEnd: 0,
-            totalAllocated: 0,
+            totalAllocated: _totalAllocated,
             totalDistributed: 0,
-            finalized: false,
-            claimKoef: _claimKoef,
-            decimals: _decimals
+            finalized: false
         });
 
         emit StartAirdrop(id, _token);
@@ -98,10 +92,7 @@ contract Airdrop is Ownable, ReentrancyGuard {
                     emit DestributionChanged(current.user, current.amount);
                 }
 
-                require(
-                    curCamp.totalAllocated < (curCamp.totalDistributed + current.amount),
-                    InvalidDistributionSum()
-                );
+                require((curCamp.totalDistributed + current.amount) <= curCamp.totalAllocated, InvalidDistributionSum());
 
                 campaignDistribution[current.campaignId][current.user] = current.amount;
                 curCamp.totalDistributed += current.amount;
@@ -128,26 +119,29 @@ contract Airdrop is Ownable, ReentrancyGuard {
         campaign.vestingEnd = vestingEnd;
     }
 
-    function claim(uint _airdropId, uint _amountToWitdraw) public nonReentrant {
+    function claim(uint _airdropId, uint _amountToWithdraw) public nonReentrant {
         Campaign storage current = campaigns[_airdropId];
 
         require(
-            block.timestamp >= current.vestingEnd &&
-                block.timestamp >= current.vestingStart &&
-                current.finalized,
-            CampaignNotFinalized()
+            block.timestamp >= current.vestingStart && current.finalized,
+            CampaignNotAllowed()
         );
 
-        uint currentAward = (campaignDistribution[_airdropId][msg.sender] *
-            current.claimKoef *
-            (block.timestamp - current.vestingStart)) / current.decimals;
+        uint initialAllocation = campaignDistribution[_airdropId][msg.sender];
+        require(initialAllocation > 0, AlreadyClaimed());
 
-        uint claimerAmount = campaignDistribution[_airdropId][msg.sender] + currentAward;
+        uint vestedAmount;
+        if (block.timestamp >= current.vestingEnd) {
+            vestedAmount = initialAllocation;
+        } else {
+            vestedAmount = (initialAllocation * (block.timestamp - current.vestingStart)) 
+                            / (current.vestingEnd - current.vestingStart);
+        }
 
-        require(claimerAmount > 0, AlreadyClaimed());
-        require(claimerAmount >= _amountToWitdraw, TooManyForWitdraw(claimerAmount));
+        require(vestedAmount >= _amountToWithdraw, TooManyForWitdraw(vestedAmount));
 
-        campaignDistribution[_airdropId][msg.sender] = claimerAmount - _amountToWitdraw;
-        IERC20(current.token).safeTransfer(msg.sender, _amountToWitdraw);
+        campaignDistribution[_airdropId][msg.sender] = initialAllocation - _amountToWithdraw;
+        IERC20(current.token).safeTransfer(msg.sender, _amountToWithdraw);
     }
+
 }

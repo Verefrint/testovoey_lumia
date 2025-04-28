@@ -12,6 +12,7 @@
     "moduleResolution": "node",
     "allowJs": true,
     "baseUrl": ".",
+    "types": ["hardhat-types"],
     "paths": {
       "*": ["./typechain-types/*"]
     }
